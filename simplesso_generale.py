@@ -9,13 +9,15 @@ from IPython.display import display, Markdown, Latex, Math
 
 class Tableau:
     #inizializzazione
-    def __init__(self, obj, prob_type):
+    def __init__(self, obj, prob_type, term_noto = 0):
         self.rows = []
         self.cons = []
         self.nonbasis = []
         self.basis=[]
         self.obj=[]
         self.id=[]
+        self.term_noto= f.l(term_noto)
+        self.prob_type=prob_type
         if prob_type == 'max':
             self.obj =[f.l(x) for x in obj]
         elif prob_type == 'min':
@@ -24,6 +26,7 @@ class Tableau:
                 array[j].cambiosegni()
             for j in range(len(obj)):
                 self.obj.append(array[j])
+            self.term_noto.cambiosegni()
 
     #funzione aggiunge vincoli
     def aggiungi_vincolo(self, expression, value):
@@ -37,7 +40,7 @@ class Tableau:
     def crea_primo_tableau(self):
         for i in range(len(self.cons)):
             self.rows[i].insert(0,self.cons[i])
-        self.obj = array([f.l([0])]+self.obj)
+        self.obj = array([self.term_noto]+self.obj)
         
         dim = len(self.rows)
         dim2=len(self.obj)
@@ -267,7 +270,7 @@ class Tableau:
         display(Latex(s))
         
 
-    def mostra_tableau(self,tipo,linguaggio):
+    def mostra_tableau(self,tipo='classico',linguaggio='python'):
             matrice=self._formaintermedia(tipo)
             if linguaggio=='latex':
                 self._latex(matrice)
@@ -276,19 +279,102 @@ class Tableau:
             if linguaggio=='markdown':
                 self._markdown(matrice)
 
+    def _variabile_entrante_duale(self):
+        low=f.l(0)
+        indice=0
+        for i in range(1,len(self.obj)):
+            if self.obj[i].minore(low):
+                indice=i
+                low=self.obj[i]
+        #print(self.nonbasis[indice-1])
+        return(indice)
 
+    def _variabile_uscente_duale(self,ind_entr):
+        low=f.l(0)
+        indice=0
+        for i in range(len(self.rows)):
+            if self.rows[i][0].minore(low):
+                low=self.rows[i][0]
+                indice=i
+        return(indice)
+
+    def step_duale(self):
+        indice_entrante=self._variabile_entrante_duale()
+        indice_uscente=self._variabile_uscente_duale(indice_entrante)
+        if indice_uscente==0:
+            print('Attenzione: nessun termine noto è negativo')
+        if indice_entrante==0:
+            print('Il duale è illimitato e primale impossibile')
+        else:
+            print('Variabile entrante:'+self.nonbasis[indice_entrante-1]+'\nVariabile uscente:'+self.basis[indice_uscente])
+            self.pivot(self.basis[indice_uscente],self.nonbasis[indice_entrante-1])
+
+        
+    def risolutore(self,tipo='classico',linguaggio='python'):
+        if self.is_feasible():
+            if self.is_optimal():
+                print("La soluzione è ottima")
+            else:
+                while not self.is_optimal():
+                    print('Iterazione primale')
+                    self.step()
+                    self.mostra_tableau(tipo,linguaggio)
+                self.stampa_soluzione_base_corrente()
+        else:
+                while not self.is_feasible():
+                    print('Iterazione duale')
+                    indice_entrante=self._variabile_entrante_duale()
+                    if indice_entrante==0:
+                        print('Il duale è illimitato e primale impossibile')
+                        break
+                    else:
+                        self.step_duale()
+                        self.mostra_tableau(tipo,linguaggio)
+                if indice_entrante!=0:
+                    while not self.is_optimal():
+                        print('Iterazione primale')
+                        self.step()
+                        self.mostra_tableau(tipo,linguaggio)
+                    self.stampa_soluzione_base_corrente()
+
+    def prezziombra(self):
+        s='Prezzi ombra: '
+        if self.is_optimal():
+            for i in range(len(self.nonbasis)):
+                if self.nonbasis[i][0]=='s':
+                    s+=self.nonbasis[i]+' = '
+                    s+=self.obj[i+1].cambiosegno1().stringa()
+                    if i!=len(self.nonbasis)-1:
+                        s+=',  '
+            
+            print(s)
+        else:
+            print('La soluzione non è ottima')
+
+    def sovrapprezzo(self,tipo='classico',linguaggio='python'):
+        par=self
+        for i in range(len(self.rows)):
+            a=self.rows[i][0]
+            a.aggcoef(1)
+            a.aggvar("t_"+str(i+1))
+            par.rows[i][0]=a
+        par.mostra_tableau(tipo,linguaggio)
+        while not self.is_optimal():
+            par.step()
+            par.mostra_tableau(tipo,linguaggio)
+  
+        
+        
+        
+
+                    
+                
                 
         
         
-        
-        
-        
-        
-        
-        
-
                 
         
+ 
         
     
                 
