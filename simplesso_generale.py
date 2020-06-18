@@ -364,6 +364,7 @@ class Tableau:
             par.mostra_tableau(tipo,linguaggio)
   
         
+  
         
         
 
